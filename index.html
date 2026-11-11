@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Booth — Passport Photo Maker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,400;0,600;1,500&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --navy:#161B33; --navy2:#232A52; --cream:#F3ECDA; --amber:#E0A458; --rust:#C65A3B; --ink:#101328;
+  --card: var(--cream); --text-on-card: var(--ink); --bg: var(--navy); --text: var(--cream);
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: dark){
+  :root{ --card: var(--cream); --text-on-card: var(--ink); --bg: var(--navy); --text: var(--cream); }
+}
+*{box-sizing:border-box; min-width:0;}
+html,body{height:100%; overflow-x:hidden; width:100%;}
+body{
+  margin:0; background:var(--bg); color:var(--text);
+  font-family:'Space Grotesk',sans-serif;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+  background-image:
+    radial-gradient(circle at 10% 10%, rgba(224,164,88,.08), transparent 40%),
+    radial-gradient(circle at 90% 80%, rgba(198,90,59,.1), transparent 40%);
+}
+header{
+  padding:2rem 1.5rem 1rem; text-align:center; position:relative;
+  padding-top:calc(2rem + env(safe-area-inset-top,0px));
+}
+h1{font-family:'Fraunces', serif; font-weight:600; font-size:clamp(1.8rem,5vw,2.8rem); margin:.2rem 0; letter-spacing:-.01em;}
+h1 em{font-style:italic; font-weight:500; color:var(--amber);}
+.sub{font-size:.95rem; opacity:.75; max-width:520px; margin:.4rem auto 0;}
+.credit{font-size:.72rem; opacity:.55; margin-top:.3rem; letter-spacing:.03em;}
+main{max-width:1080px; width:100%; margin:0 auto; padding:1rem 1.2rem 3rem; display:grid; grid-template-columns:1.1fr 1fr; gap:1.6rem;}
+@media (max-width:860px){ main{grid-template-columns:1fr;} }
+
+.panel{background:var(--card); color:var(--text-on-card); border-radius:14px; padding:1.3rem; position:relative;}
+.panel::before{
+  content:""; position:absolute; inset:6px; border:1px dashed rgba(16,19,40,.25); border-radius:9px; pointer-events:none;
+}
+.frame-wrap{display:flex; flex-direction:column; align-items:center; gap:.8rem;}
+#dropzone{
+  width:100%; aspect-ratio:1/1; max-width:360px; border-radius:10px; overflow:hidden; position:relative;
+  background:repeating-conic-gradient(#ddd 0% 25%, #eee 0% 50%) 50%/16px 16px;
+  border:2px solid var(--ink); cursor:grab; touch-action:none;
+}
+#dropzone canvas{width:100%; height:100%; display:block;}
+.corner{position:absolute; width:22px; height:22px; border:solid var(--rust); z-index:2;}
+.corner.tl{top:-2px; left:-2px; border-width:3px 0 0 3px;}
+.corner.tr{top:-2px; right:-2px; border-width:3px 3px 0 0;}
+.corner.bl{bottom:-2px; left:-2px; border-width:0 0 3px 3px;}
+.corner.br{bottom:-2px; right:-2px; border-width:0 3px 3px 0;}
+.hint{font-size:.78rem; opacity:.6; text-align:center;}
+#fileInput{display:none;}
+.btn{
+  font-family:'Space Grotesk'; font-weight:700; border:none; border-radius:8px; padding:.7rem 1.1rem;
+  cursor:pointer; font-size:.85rem; transition:transform .12s ease;
+}
+.btn:active{transform:scale(.97);}
+.btn-amber{background:var(--amber); color:var(--ink);}
+.btn-outline{background:transparent; color:var(--text-on-card); border:2px solid var(--ink);}
+.btn-rust{background:var(--rust); color:#fff;}
+.row{display:flex; gap:.6rem; flex-wrap:wrap; justify-content:center;}
+
+.section-label{font-family:'Fraunces'; font-style:italic; font-weight:500; font-size:1.05rem; margin:1.3rem 0 .5rem;}
+.presets{display:grid; grid-template-columns:repeat(auto-fill,minmax(110px,1fr)); gap:.5rem;}
+.preset{
+  border:2px solid var(--ink); border-radius:8px; padding:.5rem .6rem; cursor:pointer; background:transparent;
+  font-family:'Space Grotesk'; font-size:.78rem; text-align:left; color:var(--text-on-card); position:relative;
+}
+.preset.active{background:var(--ink); color:var(--cream);}
+.preset b{display:block; font-size:.85rem;}
+.swatches{display:flex; gap:.5rem; flex-wrap:wrap; align-items:center; min-width:0;}
+#customColor{flex-shrink:0;}
+.swatch{width:34px; height:34px; border-radius:50%; border:2px solid var(--ink); cursor:pointer;}
+.swatch.active{outline:3px solid var(--rust); outline-offset:2px;}
+.slider-row{display:flex; align-items:center; gap:.7rem; margin:.4rem 0;}
+input[type=range]{flex:1; accent-color:var(--rust);}
+.sizeinfo{font-size:.8rem; opacity:.7; font-variant-numeric:tabular-nums;}
+.tol-row label, .custom-row label{font-size:.78rem; opacity:.75; display:block; margin-bottom:.2rem;}
+.custom-row{display:grid; grid-template-columns:1fr 1fr auto; gap:.5rem; align-items:end; min-width:0;}
+.custom-row > div{min-width:0;}
+.custom-row input, .custom-row select{padding:.45rem; border-radius:6px; border:1px solid rgba(16,19,40,.3); font-family:inherit; width:100%; min-width:0; max-width:100%;}
+#sheetCanvas, #outCanvas{display:none;}
+footer{text-align:center; padding:1.5rem; font-size:.75rem; opacity:.5;}
+footer b{color:var(--amber); opacity:1;}
+.toggle-sheet{display:flex; align-items:center; gap:.5rem; font-size:.82rem; margin-top:.6rem;}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>The Photo <em>Booth</em></h1>
+  <p class="sub">Resize, recolour the backdrop, and squeeze any snapshot down to passport size — entirely on this device, nothing ever uploaded.</p>
+  <p class="credit">a studio mark by <b>Jaykumar Shah</b></p>
+</header>
+
+<main>
+  <div class="panel">
+    <div class="frame-wrap">
+      <div id="dropzone">
+        <canvas id="view" width="600" height="600"></canvas>
+        <div class="corner tl"></div><div class="corner tr"></div><div class="corner bl"></div><div class="corner br"></div>
+      </div>
+      <p class="hint">Drag to reposition · pinch or scroll to zoom</p>
+      <div class="row">
+        <button class="btn btn-amber" onclick="fileInput.click()">Choose photo</button>
+        <input id="fileInput" type="file" accept="image/*">
+        <button class="btn btn-outline" id="zoomOutBtn">−</button>
+        <button class="btn btn-outline" id="zoomInBtn">+</button>
+      </div>
+    </div>
+
+    <p class="section-label">Backdrop colour</p>
+    <div class="swatches" id="swatches">
+      <div class="swatch active" style="background:#ffffff" data-c="#ffffff"></div>
+      <div class="swatch" style="background:#cfe4f5" data-c="#cfe4f5"></div>
+      <div class="swatch" style="background:#d8d8d8" data-c="#d8d8d8"></div>
+      <div class="swatch" style="background:#C65A3B" data-c="#C65A3B"></div>
+      <div class="swatch" style="background:#2D4F3B" data-c="#2D4F3B"></div>
+      <input type="color" id="customColor" value="#ffffff" style="width:34px;height:34px;border:none;border-radius:50%;cursor:pointer;padding:0;">
+    </div>
+    <div class="tol-row">
+      <label>Backdrop removal strength: <span id="tolVal">35</span></label>
+      <input type="range" id="tolSlider" min="0" max="90" value="35">
+    </div>
+  </div>
+
+  <div class="panel">
+    <p class="section-label">Choose a size</p>
+    <div class="presets" id="presets"></div>
+
+    <div class="custom-row" style="margin-top:.7rem;">
+      <div><label>Width</label><input id="cw" type="number" value="35"></div>
+      <div><label>Height</label><input id="ch" type="number" value="45"></div>
+      <select id="cunit"><option value="mm">mm</option><option value="in">in</option><option value="px">px</option></select>
+    </div>
+
+    <p class="section-label">Compress</p>
+    <div class="slider-row">
+      <input type="range" id="qSlider" min="10" max="100" value="90">
+      <span class="sizeinfo" id="qLabel">90%</span>
+    </div>
+    <p class="sizeinfo" id="sizeInfo">Output size will appear here.</p>
+
+    <div class="toggle-sheet">
+      <input type="checkbox" id="sheetToggle"><label for="sheetToggle">Also build a 4×6" print sheet (8 copies)</label>
+    </div>
+
+    <p class="section-label">Download</p>
+    <div class="row">
+      <button class="btn btn-rust" id="downloadBtn">Download photo</button>
+      <button class="btn btn-outline" id="downloadSheetBtn" style="display:none;">Download print sheet</button>
+    </div>
+  </div>
+</main>
+
+<canvas id="outCanvas"></canvas>
+<canvas id="sheetCanvas"></canvas>
+
+<footer>Everything happens in your browser — your photo is never sent anywhere. <b>Jaykumar Shah</b> · Photo Booth</footer>
+
+<script>
+const DPI=300;
+const PRESETS=[
+ {name:'Passport (India)',w:35,h:45,unit:'mm'},
+ {name:'Passport (US)',w:2,h:2,unit:'in'},
+ {name:'PAN card',w:25,h:35,unit:'mm'},
+ {name:'Stamp size',w:20,h:25,unit:'mm'},
+ {name:'Visa (common)',w:50,h:50,unit:'mm'},
+ {name:'Aadhaar / form',w:35,h:45,unit:'mm'},
+];
+function toPx(v,unit){return unit==='px'?v:unit==='in'?v*DPI:(v/25.4)*DPI;}
+
+let img=null, offX=0, offY=0, scale=1, dragging=false, lastX=0, lastY=0;
+let targetW=toPx(35,'mm'), targetH=toPx(45,'mm');
+let bgColor='#ffffff', tolerance=35;
+
+const view=document.getElementById('view'), vctx=view.getContext('2d');
+const fileInput=document.getElementById('fileInput'), dropzone=document.getElementById('dropzone');
+
+function drawView(){
+  vctx.clearRect(0,0,view.width,view.height);
+  if(!img) return;
+  const ratio=targetW/targetH;
+  const vw=view.width, vh=view.height; // square viewport, letterboxed to ratio
+  let boxW=vw, boxH=vw/ratio;
+  if(boxH>vh){boxH=vh; boxW=vh*ratio;}
+  const bx=(vw-boxW)/2, by=(vh-boxH)/2;
+  vctx.save();
+  vctx.fillStyle='#999'; vctx.fillRect(0,0,vw,vh);
+  vctx.beginPath(); vctx.rect(bx,by,boxW,boxH); vctx.clip();
+  vctx.fillStyle=bgColor; vctx.fillRect(bx,by,boxW,boxH);
+  const iw=img.width*scale, ih=img.height*scale;
+  vctx.drawImage(img, bx+boxW/2-iw/2+offX, by+boxH/2-ih/2+offY, iw, ih);
+  vctx.restore();
+  vctx.strokeStyle='#161B33'; vctx.lineWidth=2; vctx.strokeRect(bx,by,boxW,boxH);
+}
+
+fileInput.addEventListener('change', e=>{
+  const f=e.target.files[0]; if(!f) return;
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    const im=new Image();
+    im.onload=()=>{ img=im; offX=0; offY=0; scale=Math.max(view.width/im.width, view.height/im.height); drawView(); updateSizeInfo(); };
+    im.src=ev.target.result;
+  };
+  reader.readAsDataURL(f);
+});
+
+function pos(e){ const t=e.touches?e.touches[0]:e; const r=view.getBoundingClientRect(); return {x:(t.clientX-r.left)*(view.width/r.width), y:(t.clientY-r.top)*(view.height/r.height)}; }
+dropzone.addEventListener('mousedown', e=>{dragging=true; const p=pos(e); lastX=p.x; lastY=p.y;});
+window.addEventListener('mousemove', e=>{ if(!dragging) return; const p=pos(e); offX+=p.x-lastX; offY+=p.y-lastY; lastX=p.x; lastY=p.y; drawView();});
+window.addEventListener('mouseup', ()=>dragging=false);
+dropzone.addEventListener('touchstart', e=>{dragging=true; const p=pos(e); lastX=p.x; lastY=p.y;});
+dropzone.addEventListener('touchmove', e=>{ if(!dragging) return; e.preventDefault(); const p=pos(e); offX+=p.x-lastX; offY+=p.y-lastY; lastX=p.x; lastY=p.y; drawView();}, {passive:false});
+window.addEventListener('touchend', ()=>dragging=false);
+dropzone.addEventListener('wheel', e=>{ if(!img) return; e.preventDefault(); scale*=e.deltaY<0?1.06:.94; drawView(); }, {passive:false});
+document.getElementById('zoomInBtn').onclick=()=>{ if(img){scale*=1.12; drawView();} };
+document.getElementById('zoomOutBtn').onclick=()=>{ if(img){scale*=.89; drawView();} };
+
+const presetsEl=document.getElementById('presets');
+PRESETS.forEach((p,i)=>{
+  const d=document.createElement('button');
+  d.className='preset'+(i===0?' active':'');
+  d.innerHTML=`<b>${p.name}</b>${p.w}×${p.h}${p.unit}`;
+  d.onclick=()=>{ document.querySelectorAll('.preset').forEach(x=>x.classList.remove('active')); d.classList.add('active');
+    targetW=toPx(p.w,p.unit); targetH=toPx(p.h,p.unit); cw.value=p.w; ch.value=p.h; cunit.value=p.unit; drawView(); updateSizeInfo(); };
+  presetsEl.appendChild(d);
+});
+const cw=document.getElementById('cw'), ch=document.getElementById('ch'), cunit=document.getElementById('cunit');
+[cw,ch,cunit].forEach(el=>el.addEventListener('input', ()=>{
+  document.querySelectorAll('.preset').forEach(x=>x.classList.remove('active'));
+  targetW=toPx(+cw.value,cunit.value); targetH=toPx(+ch.value,cunit.value); drawView(); updateSizeInfo();
+}));
+
+document.querySelectorAll('.swatch').forEach(s=>s.addEventListener('click', ()=>{
+  document.querySelectorAll('.swatch').forEach(x=>x.classList.remove('active')); s.classList.add('active');
+  bgColor=s.dataset.c; drawView();
+}));
+document.getElementById('customColor').addEventListener('input', e=>{
+  document.querySelectorAll('.swatch').forEach(x=>x.classList.remove('active'));
+  bgColor=e.target.value; drawView();
+});
+document.getElementById('tolSlider').addEventListener('input', e=>{ tolerance=+e.target.value; document.getElementById('tolVal').textContent=tolerance; });
+
+const qSlider=document.getElementById('qSlider'), qLabel=document.getElementById('qLabel');
+qSlider.addEventListener('input', ()=>{ qLabel.textContent=qSlider.value+'%'; updateSizeInfo(); });
+
+function removeBackground(ctx,w,h){
+  const data=ctx.getImageData(0,0,w,h);
+  const d=data.data;
+  // sample corners as "backdrop" reference
+  const samples=[[0,0],[w-1,0],[0,h-1],[w-1,h-1]];
+  const refs=samples.map(([x,y])=>{ const i=(y*w+x)*4; return [d[i],d[i+1],d[i+2]]; });
+  const target=hexToRgb(bgColor);
+  const tol=tolerance*2.4;
+  for(let i=0;i<d.length;i+=4){
+    const r=d[i],g=d[i+1],b=d[i+2];
+    let close=false;
+    for(const ref of refs){ if(Math.abs(r-ref[0])+Math.abs(g-ref[1])+Math.abs(b-ref[2])<tol){close=true;break;} }
+    if(close){ d[i]=target.r; d[i+1]=target.g; d[i+2]=target.b; }
+  }
+  ctx.putImageData(data,0,0);
+}
+function hexToRgb(hex){ const n=parseInt(hex.replace('#',''),16); return {r:(n>>16)&255,g:(n>>8)&255,b:n&255}; }
+
+function renderFinal(){
+  const w=Math.round(targetW), h=Math.round(targetH);
+  const out=document.getElementById('outCanvas'); out.width=w; out.height=h;
+  const octx=out.getContext('2d');
+  octx.fillStyle=bgColor; octx.fillRect(0,0,w,h);
+  const ratio=targetW/targetH;
+  const vw=view.width, vh=view.height;
+  let boxW=vw, boxH=vw/ratio; if(boxH>vh){boxH=vh; boxW=vh*ratio;}
+  const bx=(vw-boxW)/2, by=(vh-boxH)/2;
+  const sx=w/boxW, sy=h/boxH;
+  if(img){
+    const iw=img.width*scale*sx, ih=img.height*scale*sy;
+    const dx=(bx+boxW/2-img.width*scale/2+offX-bx)*sx;
+    const dy=(by+boxH/2-img.height*scale/2+offY-by)*sy;
+    octx.drawImage(img, dx, dy, iw, ih);
+  }
+  removeBackground(octx,w,h);
+  return out;
+}
+
+function updateSizeInfo(){
+  if(!img){ document.getElementById('sizeInfo').textContent='Output size will appear here.'; return; }
+  const out=renderFinal();
+  const q=qSlider.value/100;
+  out.toBlob(blob=>{
+    const kb=(blob.size/1024).toFixed(0);
+    document.getElementById('sizeInfo').textContent=`${out.width}×${out.height}px · ≈${kb} KB at ${qSlider.value}% quality`;
+  }, 'image/jpeg', q);
+}
+qSlider.addEventListener('change', updateSizeInfo);
+document.getElementById('tolSlider').addEventListener('change', ()=>{ drawView(); updateSizeInfo(); });
+document.querySelectorAll('.swatch,#customColor').forEach(el=>el.addEventListener('change', updateSizeInfo));
+document.querySelectorAll('.preset').forEach(el=>el.addEventListener('click', ()=>setTimeout(updateSizeInfo,50)));
+
+document.getElementById('downloadBtn').onclick=()=>{
+  if(!img){ alert('Choose a photo first.'); return; }
+  const out=renderFinal();
+  out.toBlob(blob=>{
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='passport-photo.jpg'; a.click();
+  }, 'image/jpeg', qSlider.value/100);
+};
+
+document.getElementById('sheetToggle').addEventListener('change', e=>{
+  document.getElementById('downloadSheetBtn').style.display=e.target.checked?'inline-block':'none';
+});
+document.getElementById('downloadSheetBtn').onclick=()=>{
+  if(!img){ alert('Choose a photo first.'); return; }
+  const photo=renderFinal();
+  const sheetW=6*DPI, sheetH=4*DPI;
+  const sheet=document.getElementById('sheetCanvas'); sheet.width=sheetW; sheet.height=sheetH;
+  const sctx=sheet.getContext('2d');
+  sctx.fillStyle='#ffffff'; sctx.fillRect(0,0,sheetW,sheetH);
+  const margin=40;
+  const cols=4, rows=2;
+  const cellW=(sheetW-margin*2)/cols, cellH=(sheetH-margin*2)/rows;
+  const pw=Math.min(cellW-20, photo.width), ph=pw*(photo.height/photo.width);
+  for(let r=0;r<rows;r++) for(let c=0;c<cols;c++){
+    const x=margin+c*cellW+(cellW-pw)/2, y=margin+r*cellH+(cellH-ph)/2;
+    sctx.drawImage(photo, x, y, pw, ph);
+    sctx.strokeStyle='#ccc'; sctx.setLineDash([4,3]); sctx.strokeRect(x,y,pw,ph); sctx.setLineDash([]);
+  }
+  sheet.toBlob(blob=>{ const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='print-sheet-4x6.jpg'; a.click(); }, 'image/jpeg', .92);
+};
+</script>
+</body>
+</html>
